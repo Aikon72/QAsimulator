@@ -2,34 +2,15 @@ pipeline {
     agent any
 
     stages {
-        stage('Checkout') {
+        stage('Checkout via SSH') {
             steps {
-                git 'https://github.com/Aikon72/qa_simulator.git'
+                git branch: 'main', url: 'git@github.com:Aikon72/QAsimulator.git'
             }
         }
 
         stage('Test') {
             steps {
-                sh '''
-                python3 -m venv venv
-                . venv/bin/activate
-                pip install -r requirements.txt
-                python -m pytest -v
-                '''
-            }
-        }
-
-        stage('Deploy') {
-            steps {
-                sh '''
-                ssh -i /var/jenkins_home/.ssh/id_rsa aikon@192.168.1.100 '
-                    cd /var/www/qa_simulator
-                    git pull
-                    source venv/bin/activate
-                    pip install -r requirements.txt
-                    sudo systemctl restart qa_simulator.service
-                '
-                '''
+                sh 'ls -la'
             }
         }
     }

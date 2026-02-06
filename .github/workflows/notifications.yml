@@ -1,0 +1,58 @@
+name: Notifications
+
+on:
+  workflow_run:
+    workflows: ["QA Simulator CI/CD", "Build and Deploy"]
+    types: [completed]
+
+jobs:
+  notify:
+    name: Send Notifications
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion != 'skipped' }}
+
+    steps:
+    - name: Send to Slack
+      uses: 8398a7/action-slack@v3
+      with:
+        status: ${{ github.event.workflow_run.conclusion }}
+        channel: '#qa-ci-cd'
+        username: 'QA Bot'
+      env:
+        SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+
+    - name: Send to Telegram
+      uses: appleboy/telegram-action@master
+      with:
+        to: ${{ secrets.TELEGRAM_CHAT_ID }}
+        token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+        message: |
+          Workflow: ${{ github.event.workflow_run.name }}
+          Status: ${{ github.event.workflow_run.conclusion }}
+          URL: ${{ github.event.workflow_run.html_url }}
+
+    - name: Create GitHub Issue on Failure
+      if: failure()
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const { data: issues } = await github.rest.issues.listForRepo({
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            state: 'open',
+            labels: ['ci-failure']
+          });
+          
+          const existingIssue = issues.find(issue => 
+            issue.title.includes('CI/CD Pipeline Failure')
+          );
+          
+          if (!existingIssue) {
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `CI/CD Pipeline Failure - ${new Date().toISOString()}`,
+              body: `Workflow ${context.payload.workflow_run.name} failed.\n\nURL: ${context.payload.workflow_run.html_url}`,
+              labels: ['bug', 'ci-failure', 'high-priority']
+            });
+          }

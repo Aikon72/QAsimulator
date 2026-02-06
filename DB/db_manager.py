@@ -11,5 +11,6 @@ with psycopg2.connect(
         cur.execute("SELECT version()")
         print(cur.fetchone())
 
+
     # Автоматический коммит при успехе
     # Автоматический роллбэк при исключении
